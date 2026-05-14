@@ -452,9 +452,9 @@ function resolveColor(name, idx) {
 // ===== FORMATTING =====
 const FMT = {
   n: n => (typeof n === 'number' ? n.toLocaleString('en-US') : n),
-  k: n => { n = Number(n); if(n>=1e6){ var v=Math.floor(n/1e5)/10; return v+'M'; } if(n>=1e3){ var v=Math.floor(n/100)/10; return (v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return n.toString(); },
+  k: n => { n = Number(n); if(n>=1e9){ var v=Math.floor(n/1e8)/10; return v+'B'; } if(n>=1e6){ var v=Math.floor(n/1e5)/10; return v+'M'; } if(n>=1e3){ var v=Math.floor(n/100)/10; return (v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return n.toString(); },
   pct: n => Number(n).toFixed(1)+'%',
-  dollar: n => { n = Number(n); if(n>=1e6){ var v=Math.floor(n/1e5)/10; return '$'+v+'M'; } if(n>=1e3){ var v=Math.floor(n/100)/10; return '$'+(v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return '$'+n.toLocaleString('en-US'); },
+  dollar: n => { n = Number(n); if(n>=1e9){ var v=Math.floor(n/1e8)/10; return '$'+v+'B'; } if(n>=1e6){ var v=Math.floor(n/1e5)/10; return '$'+v+'M'; } if(n>=1e3){ var v=Math.floor(n/100)/10; return '$'+(v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return '$'+n.toLocaleString('en-US'); },
   raw: n => String(n)
 };
 
