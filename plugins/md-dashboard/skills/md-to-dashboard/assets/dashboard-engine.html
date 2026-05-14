@@ -373,16 +373,20 @@ h1.display i{color:var(--mint);font-weight:700;font-style:normal}
 /* ===== RESPONSIVE ===== */
 @media(max-width:1200px){
   .hero-title{grid-template-columns:1fr;gap:24px}
-  .kpi-row{grid-template-columns:1fr 1fr}
-  .g-2,.g-3,.g-2-1,.g-1-2{grid-template-columns:1fr}
+  .kpi-row{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .g-3{grid-template-columns:1fr 1fr}
+  .g-2-1,.g-1-2{grid-template-columns:1fr 1fr}
   .section-head{grid-template-columns:1fr;gap:12px}
   .section-kicker{text-align:left}
+  .chart-wrap{overflow-x:auto}
+  .heatmap-grid{overflow-x:auto}
+}
+@media(max-width:860px){
+  .g-2,.g-3,.g-2-1,.g-1-2{grid-template-columns:1fr}
   .vs-row{grid-template-columns:1fr}
   .vs-divider{width:100%;height:1px;margin:0 12px}
   .stat-stack{grid-template-columns:1fr}
-  .chart-wrap{overflow-x:auto}
-  .heatmap-grid{overflow-x:auto}
-  .hm-cell{min-height:22px;font-size:8px}
+  .hm-cell{min-height:24px;font-size:9px}
 }
 @media(max-width:720px){
   .body-section{padding:48px 20px}
@@ -448,11 +452,25 @@ function resolveColor(name, idx) {
 // ===== FORMATTING =====
 const FMT = {
   n: n => (typeof n === 'number' ? n.toLocaleString('en-US') : n),
-  k: n => { n = Number(n); return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(n>=1e4?0:1)+'K' : n.toString(); },
+  k: n => { n = Number(n); if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3){ var v=n/1e3; return (v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return n.toString(); },
   pct: n => Number(n).toFixed(1)+'%',
-  dollar: n => { n = Number(n); return '$'+(n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(n>=1e4?0:1)+'K' : n.toLocaleString('en-US')); },
+  dollar: n => { n = Number(n); if(n>=1e6) return '$'+(n/1e6).toFixed(1)+'M'; if(n>=1e3){ var v=n/1e3; return '$'+(v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return '$'+n.toLocaleString('en-US'); },
   raw: n => String(n)
 };
+
+// Parse markdown inline formatting: **bold**, *italic*, [links](url)
+function parseMd(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="font-family:JetBrains Mono;font-size:.9em;background:rgba(16,24,44,.06);padding:1px 5px;border-radius:4px">$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:var(--green-dark);font-weight:600">$1</a>');
+}
+function htmlSafe(parent, mdText) {
+  const doc = new DOMParser().parseFromString('<body>'+parseMd(mdText)+'</body>','text/html');
+  Array.from(doc.body.childNodes).forEach(n => parent.appendChild(document.importNode(n, true)));
+}
 
 function fmt(n, format) {
   if (typeof n === 'string' && isNaN(Number(n))) return n;
@@ -725,7 +743,12 @@ function fmtDateLabel(val) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return months[parseInt(m[2])-1] + " '" + m[1].slice(2);
   }
-  return s.length > 8 ? s.substring(0, 8) + '…' : s;
+  return s; // Don't truncate — let the chart renderer decide based on available space
+}
+function fmtBarLabel(val, maxChars) {
+  const s = String(val);
+  if (s.length <= maxChars) return s;
+  return s.substring(0, maxChars - 1) + '…';
 }
 
 function renderBarChart(container, chart) {
@@ -838,7 +861,10 @@ function renderBarChart(container, chart) {
 
     // --- X-axis labels ---
     if (i % labelStep === 0 || i === n - 1) {
-      var label = fmtDateLabel(d[xKey]);
+      var rawLabel = fmtDateLabel(d[xKey]);
+      // Calculate max chars based on available space per bar
+      var maxLabelChars = needsRotation ? 18 : Math.max(6, Math.floor(gap / 7));
+      var label = fmtBarLabel(rawLabel, maxLabelChars);
 
       if (needsRotation) {
         var txt = svgEl('text', {
@@ -847,6 +873,7 @@ function renderBarChart(container, chart) {
           transform: 'rotate(-45,' + cx + ',' + (H - mB + 12) + ')'
         });
         txt.textContent = label;
+        if (rawLabel.length > maxLabelChars) { const tl = svgEl('title'); tl.textContent = rawLabel; txt.appendChild(tl); }
         svg.appendChild(txt);
       } else {
         var txt2 = svgEl('text', {
@@ -854,6 +881,7 @@ function renderBarChart(container, chart) {
           'font-family': 'Inter', 'font-weight': '500', 'font-size': '10.5'
         });
         txt2.textContent = label;
+        if (rawLabel.length > maxLabelChars) { const tl2 = svgEl('title'); tl2.textContent = rawLabel; txt2.appendChild(tl2); }
         svg.appendChild(txt2);
       }
     }
@@ -2073,8 +2101,8 @@ function renderSections() {
     if (section.kicker) head.appendChild(el('div', {className:'section-kicker'}, section.kicker));
     div.appendChild(head);
 
-    // Section text
-    if (section.text) div.appendChild(el('p', {className:'section-text'}, section.text));
+    // Section text (with markdown parsing)
+    if (section.text) { const sp = el('p', {className:'section-text'}); htmlSafe(sp, section.text); div.appendChild(sp); }
 
     // Cards grid
     const cards = section.cards || [];
@@ -2113,7 +2141,7 @@ function renderSections() {
               insEl.appendChild(stat);
             }
             if (ins.title) insEl.appendChild(el('div', {className:'i-title'}, ins.title));
-            if (ins.body) insEl.appendChild(el('div', {className:'i-body'}, ins.body));
+            if (ins.body) { const ib = el('div', {className:'i-body'}); htmlSafe(ib, ins.body); insEl.appendChild(ib); }
             grid.appendChild(insEl);
           });
           return;
@@ -2133,7 +2161,7 @@ function renderSections() {
           }
           cardEl.appendChild(head);
         }
-        if (card.text) cardEl.appendChild(el('p', {className:'card-sub'}, card.text));
+        if (card.text) { const ct = el('p', {className:'card-sub'}); htmlSafe(ct, card.text); cardEl.appendChild(ct); }
 
         // Render charts
         (card.charts || []).forEach(chart => {
@@ -2160,7 +2188,7 @@ function renderSections() {
             insDiv.appendChild(big);
           }
           if (ins.title) insDiv.appendChild(el('div', {style:'font-weight:600;font-size:15px;margin-top:6px'}, ins.title));
-          if (ins.body) insDiv.appendChild(el('p', {className:'card-sub'}, ins.body));
+          if (ins.body) { const ib2 = el('p', {className:'card-sub'}); htmlSafe(ib2, ins.body); insDiv.appendChild(ib2); }
           cardEl.appendChild(insDiv);
         });
 
