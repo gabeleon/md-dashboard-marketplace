@@ -1,0 +1,4 @@
+{
+  "name": "md-dashboard-marketplace",
+  "plugins": ["md-dashboard"]
+}

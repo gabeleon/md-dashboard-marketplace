@@ -1,0 +1,13 @@
+{
+  "name": "md-dashboard",
+  "version": "0.1.0",
+  "description": "Generate self-contained HTML dashboards from structured markdown. 21 chart types, interactive tooltips, audit modals, Mermaid diagrams. LLM writes only markdown — zero HTML authoring required.",
+  "author": {
+    "name": "Gabe Leon",
+    "email": "gabe.leon@boldin.com",
+    "url": "https://github.com/gabeleon"
+  },
+  "repository": "https://github.com/gabeleon/md-dashboard-marketplace",
+  "license": "MIT",
+  "keywords": ["dashboard", "data-visualization", "charts", "markdown", "html", "reports", "d3"]
+}
