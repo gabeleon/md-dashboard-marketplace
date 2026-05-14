@@ -452,9 +452,9 @@ function resolveColor(name, idx) {
 // ===== FORMATTING =====
 const FMT = {
   n: n => (typeof n === 'number' ? n.toLocaleString('en-US') : n),
-  k: n => { n = Number(n); if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3){ var v=n/1e3; return (v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return n.toString(); },
+  k: n => { n = Number(n); if(n>=1e6){ var v=Math.floor(n/1e5)/10; return v+'M'; } if(n>=1e3){ var v=Math.floor(n/100)/10; return (v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return n.toString(); },
   pct: n => Number(n).toFixed(1)+'%',
-  dollar: n => { n = Number(n); if(n>=1e6) return '$'+(n/1e6).toFixed(1)+'M'; if(n>=1e3){ var v=n/1e3; return '$'+(v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return '$'+n.toLocaleString('en-US'); },
+  dollar: n => { n = Number(n); if(n>=1e6){ var v=Math.floor(n/1e5)/10; return '$'+v+'M'; } if(n>=1e3){ var v=Math.floor(n/100)/10; return '$'+(v===Math.floor(v)?v.toFixed(0):v.toFixed(1))+'K'; } return '$'+n.toLocaleString('en-US'); },
   raw: n => String(n)
 };
 
@@ -756,6 +756,19 @@ function renderBarChart(container, chart) {
   if (!data.length) return;
   const xKey = chart.x || chart.label || Object.keys(data[0])[0];
   const yKey = chart.y || chart.value || Object.keys(data[0])[1];
+
+  // Auto-switch to horizontal bar for non-date labels with few items in narrow containers
+  const isDate = data.length > 0 && /^\d{4}/.test(String(data[0][xKey]));
+  if (!isDate && data.length <= 10 && !chart._forceVertical) {
+    // Render as horizontal bar instead — more readable at narrow widths
+    return renderHorizontalBarChart(container, {
+      ...chart,
+      label: xKey,
+      value: yKey,
+      sort: chart.sort || 'desc'
+    });
+  }
+
   const sorted = chart.sort === 'desc' ? [...data].sort((a,b) => Number(b[yKey])-Number(a[yKey])) :
                  chart.sort === 'asc' ? [...data].sort((a,b) => Number(a[yKey])-Number(b[yKey])) : data;
   const limited = chart.limit ? sorted.slice(0, chart.limit) : sorted;
@@ -787,7 +800,7 @@ function renderBarChart(container, chart) {
   const gid = 'bar-grad-' + Math.random().toString(36).substr(2, 6);
   const barColor = resolveColor(chart.color, 0);
 
-  const svg = svgEl('svg', {viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet'});
+  const svg = svgEl('svg', {viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet', style: 'width:100%;min-height:240px'});
 
   // --- Defs: gradient for bars ---
   const defs = svgEl('defs');
@@ -914,7 +927,7 @@ function renderBarChart(container, chart) {
   });
 
   // --- Build DOM: wrap with tooltip ---
-  var wrap = el('div', {className: 'chart-wrap', style: 'position:relative'});
+  var wrap = el('div', {className: 'chart-wrap', style: 'position:relative;min-height:240px'});
   wrap.appendChild(svg);
 
   // Tooltip div (HTML, outside SVG) — built with safe DOM methods
@@ -2118,7 +2131,7 @@ function renderSections() {
       const allAreInsights = insightOnlyCards.length === cards.length;
       if (hasSpanLeft) gridClass += 'g-2-1';
       else if (hasSpanRight) gridClass += 'g-1-2';
-      else if (allAreInsights && totalInsights === 2) gridClass += 'g-2';
+      else if (allAreInsights && totalInsights >= 2) gridClass += 'g-2';
       else if (cards.length === 1 || hasSpan2) gridClass += 'g-1';
       else if (cards.length === 3) gridClass += 'g-3';
       else gridClass += 'g-2';
